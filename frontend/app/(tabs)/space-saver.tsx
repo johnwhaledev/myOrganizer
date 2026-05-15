@@ -12,6 +12,7 @@ import { createScan, createOperation } from '../../utils/api';
 import { pickFolderAndroid, pickFiles, supportsFolderPick, type PickedFile } from '../../utils/folderPicker';
 import { hashFile, MAX_FULL_HASH_BYTES } from '../../utils/hash';
 
+
 interface FileInfo {
   uri: string;
   name: string;
@@ -39,6 +40,7 @@ export default function SpaceSaverScreen() {
   const [deletedCount, setDeletedCount] = useState(0);
   const [freedSpace, setFreedSpace] = useState(0);
   const [source, setSource] = useState<'folder' | 'files' | null>(null);
+  const [folderUri, setFolderUri] = useState<string | null>(null);
 
   const scan = useCallback(async (picked: PickedFile[]) => {
     // Pass 1: group by size. Only sizes with 2+ files are worth hashing.
@@ -109,6 +111,7 @@ export default function SpaceSaverScreen() {
       }
 
       setSource(res.source);
+      setFolderUri(res.folderUri ?? null);
       setStatus('scanning');
       setProgress(0);
       setProgressLabel('');
@@ -175,20 +178,33 @@ export default function SpaceSaverScreen() {
         {
           text: 'Delete', style: 'destructive', onPress: async () => {
             setStatus('deleting');
+            const saf = FileSystem.StorageAccessFramework;
             let freed = 0, deleted = 0;
+            let firstError: string | null = null;
+
             for (const uri of selected) {
               const f = groups.flatMap(g => g.files).find(f => f.uri === uri);
               if (!f) continue;
+
               try {
-                if (uri.startsWith('content://')) {
-                  await FileSystem.StorageAccessFramework.deleteAsync(uri);
-                } else {
+                if (uri.startsWith('content://') && folderUri) {
+                  // SAF URI con permesso cartella esplicito — delete diretto
+                  await saf.deleteAsync(uri);
+                } else if (!uri.startsWith('content://')) {
+                  // file:// cache (document picker) — elimina copia locale
                   await FileSystem.deleteAsync(uri, { idempotent: true });
+                } else {
+                  // content:// senza folderUri — non eliminabile
+                  continue;
                 }
                 freed += f.size; deleted++;
                 await createOperation({ operation_type: 'delete', original_name: f.name, file_size: f.size }).catch(() => {});
-              } catch { /* file may already be gone */ }
+              } catch (e: any) {
+                if (!firstError) firstError = String(e?.message ?? e);
+              }
             }
+
+            if (firstError) Alert.alert('Errore eliminazione', firstError);
             setDeletedCount(deleted);
             setFreedSpace(freed);
             setStatus('done');
@@ -196,7 +212,7 @@ export default function SpaceSaverScreen() {
         },
       ]
     );
-  }, [selected, groups]);
+  }, [selected, groups, folderUri]);
 
   const reset = useCallback(() => {
     setStatus('idle');
@@ -210,6 +226,7 @@ export default function SpaceSaverScreen() {
     setFreedSpace(0);
     setExpandedGroup(null);
     setSource(null);
+    setFolderUri(null);
   }, []);
 
   if (status === 'idle') return (
@@ -250,7 +267,7 @@ export default function SpaceSaverScreen() {
   if (status === 'deleting') return (
     <View style={styles.centered} testID="saver-deleting">
       <ActivityIndicator size="large" color={Colors.danger} />
-      <Text style={styles.bigTitle}>Deleting files...</Text>
+      <Text style={styles.bigTitle}>Deleting...</Text>
     </View>
   );
 
@@ -259,9 +276,9 @@ export default function SpaceSaverScreen() {
       <Ionicons name="checkmark-circle" size={64} color={Colors.success} />
       <Text style={styles.bigTitle}>Done!</Text>
       <View style={styles.resultCard}>
-        <ResultRow icon="trash-outline"          label="Files Deleted"  value={String(deletedCount)}          color={Colors.danger} />
-        <ResultRow icon="cloud-download-outline" label="Space Freed"    value={formatFileSize(freedSpace)}    color={Colors.warning} />
-        <ResultRow icon="scan-outline"           label="Total Scanned"  value={String(totalScanned)}          color={Colors.accent} />
+        <ResultRow icon="trash-outline"          label="Files Deleted"   value={String(deletedCount)}       color={Colors.danger} />
+        <ResultRow icon="cloud-download-outline" label="Space Freed"     value={formatFileSize(freedSpace)} color={Colors.warning} />
+        <ResultRow icon="scan-outline"           label="Total Scanned"   value={String(totalScanned)}       color={Colors.accent} />
       </View>
       <TouchableOpacity style={styles.primaryBtn} onPress={reset} testID="scan-again-btn" activeOpacity={0.8}>
         <Ionicons name="refresh-outline" size={20} color={Colors.background} />
@@ -277,6 +294,14 @@ export default function SpaceSaverScreen() {
         <View style={styles.sourceBanner}>
           <Ionicons name="folder-open-outline" size={14} color={Colors.accent} />
           <Text style={styles.sourceBannerTxt}>Folder scan (Android SAF)</Text>
+        </View>
+      )}
+      {source === 'files' && (
+        <View style={styles.warnBanner}>
+          <Ionicons name="information-circle-outline" size={14} color={Colors.warning} />
+          <Text style={styles.warnBannerTxt}>
+            Modalità "Pick Files": i duplicati vengono identificati ma non eliminati — i file originali restano sul dispositivo. Usa "Pick Folder" per eliminare.
+          </Text>
         </View>
       )}
       <View style={styles.summaryBar}>
@@ -500,4 +525,5 @@ const styles = StyleSheet.create({
   resultRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   resultLabel: { flex: 1, fontSize: 14, fontFamily: Fonts.sans.regular, color: Colors.textSecondary },
   resultValue: { fontSize: 16, fontFamily: Fonts.mono.bold },
+
 });
