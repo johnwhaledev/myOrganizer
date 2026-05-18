@@ -5,6 +5,15 @@ No cloud. No background processes you didn't ask for. Your files stay on your de
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="Screenshot_2026-05-18-21-20-50-572_com.myorganizer.app.jpg" width="270" alt="Brain — categories screen"/>
+  <img src="Screenshot_2026-05-18-21-21-01-021_com.myorganizer.app.jpg" width="270" alt="Settings screen"/>
+</p>
+
+---
+
 ## What it does
 
 myOrganizer has three tools:
