@@ -82,6 +82,8 @@ memory/test_credentials.md
 
 # Mobile development
 android-sdk/
+frontend/android/local.properties
+frontend/android/keystore.properties
 
 # Brand assets — private
 styleguide/
