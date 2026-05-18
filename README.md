@@ -1,5 +1,9 @@
 # myOrganizer
 
+<p align="center">
+  <img src="assets/logo.png" width="96" alt="myOrganizer logo"/>
+</p>
+
 **Offline document organizer for Android.**
 No cloud. No background processes you didn't ask for. Your files stay on your device.
 
