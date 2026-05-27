@@ -18,3 +18,4 @@ local.properties
 # Signing — never commit credentials or keystore to public repos
 keystore.properties
 app/myorganizer.keystore
+app/debug.keystore
