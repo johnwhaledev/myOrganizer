@@ -7,6 +7,8 @@
 **Offline document organizer for Android.**
 No cloud. No background processes you didn't ask for. Your files stay on your device.
 
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/johnwhale)
+
 ---
 
 ## Screenshots
